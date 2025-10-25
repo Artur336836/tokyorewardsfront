@@ -1,16 +1,21 @@
+// src/routes/AdminGate.jsx
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 
-import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const LazyAdmin = lazy(() => import('../admin/AdminPanel.jsx'));
 
 export default function AdminGate() {
-  const [ok, setOk] = useState(null);
+  const [ok, setOk] = useState(null); 
   const [token, setToken] = useState('');
 
   useEffect(() => {
-    const t = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token') || '';
-    if (!t) return setOk(false);
+    const t =
+      sessionStorage.getItem('admin_token') ||
+      localStorage.getItem('admin_token') ||
+      '';
+    if (!t) { setOk(false); return; }
     setToken(t);
 
     fetch(`${BACKEND_URL}/api/admin/ping`, { headers: { 'x-admin-token': t } })
@@ -18,16 +23,10 @@ export default function AdminGate() {
       .catch(() => setOk(false));
   }, []);
 
-  if (ok === null) return null;
-  if (!ok) return <div style={{ display:'none' }} />;
+  const fetchAuthed = (input, init = {}) =>
+    fetch(input, { ...init, headers: { ...(init.headers || {}), 'x-admin-token': token } });
 
-  const fetchAuthed = useMemo(() => {
-    return (input, init = {}) =>
-      fetch(input, {
-        ...init,
-        headers: { ...(init.headers || {}), 'x-admin-token': token }
-      });
-  }, [token]);
+  if (ok !== true) return null;
 
   return (
     <Suspense fallback={null}>
