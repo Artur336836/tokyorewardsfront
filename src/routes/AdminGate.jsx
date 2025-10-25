@@ -1,4 +1,4 @@
-// src/routes/AdminGate.jsx
+
 import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -9,16 +9,18 @@ export default function AdminGate() {
   const [token, setToken] = useState('');
 
   useEffect(() => {
-    const t = localStorage.getItem('admin_token') || '';
+    const t = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token') || '';
     if (!t) return setOk(false);
     setToken(t);
+
     fetch(`${BACKEND_URL}/api/admin/ping`, { headers: { 'x-admin-token': t } })
-      .then(r => setOk(r.ok)) 
+      .then(r => setOk(r.ok))
       .catch(() => setOk(false));
   }, []);
 
-  if (ok === null) return null;     
-  if (!ok) return <div style={{ display:'none' }} />;  
+  if (ok === null) return null;
+  if (!ok) return <div style={{ display:'none' }} />;
+
   const fetchAuthed = useMemo(() => {
     return (input, init = {}) =>
       fetch(input, {
