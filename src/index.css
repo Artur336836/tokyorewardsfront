@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.container-outer { @apply max-w-6xl mx-auto px-4; }
+.card { @apply bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-4 shadow-lg; }
+.section-title { @apply text-xl font-semibold tracking-wide mb-3; }
+.countdown { @apply text-3xl md:text-4xl font-black tracking-wider; }
+.muted { @apply text-slate-400; }
+.btn { @apply px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all; }
+.btn.ghost { @apply bg-transparent; }
+
+.logo-glow { width: 160px; filter: drop-shadow(0 0 8px rgba(255,255,255,0.5)); animation: logoPulse 3s ease-in-out infinite; }
+@keyframes logoPulse { 0%,100% { filter: drop-shadow(0 0 6px rgba(255,255,255,0.25)); } 50% { filter: drop-shadow(0 0 14px rgba(255,255,255,0.7)); } }
+.site-title { @apply text-3xl md:text-4xl font-bold; text-shadow: 0 0 8px rgba(255,255,255,0.55); animation: titlePulse 3s ease-in-out infinite; }
+@keyframes titlePulse { 0%,100% { text-shadow: 0 0 6px rgba(255,255,255,0.3);} 50% { text-shadow: 0 0 12px rgba(255,255,255,0.8);} }
+
+.navbar { @apply flex justify-center gap-2 mt-3; }
+.nav-btn { @apply px-4 py-2 rounded-xl backdrop-blur-md bg-white/5 text-gray-300 hover:bg-white/10 transition-all duration-300 hover:shadow-[0_0_8px_rgba(0,157,255,0.6)]; }
+.nav-btn.active { @apply text-white shadow-[0_0_10px_rgba(0,157,255,0.8)] border-b-2 border-blue-400; }
+
+.neon-border { box-shadow: 0 0 12px rgba(56,189,248,0.35), inset 0 0 12px rgba(56,189,248,0.25); border: 1px solid rgba(56,189,248,0.45); }
+.announcement-text { @apply text-center text-base md:text-lg; animation: fadeIn 0.6s ease both; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
+
+.rows { @apply divide-y divide-white/10; }
+.row { @apply grid grid-cols-3 items-center py-3; }
+.row-name { @apply font-medium; }
+.row-rank { @apply text-slate-400; }
+.row-points { @apply text-right font-semibold; }
+
+.podium-wrap { @apply grid grid-cols-3 gap-4 items-end max-w-3xl mx-auto my-2; }
+.podium-col { @apply flex flex-col items-center; }
+.podium-block { @apply mt-3 w-full rounded-2xl flex items-end justify-center; }
+.podium-no { @apply mb-2 font-bold text-2xl text-white drop-shadow-[0_0_6px_rgba(0,0,0,0.35)]; }
+
+.bg-ambient::before {
+  content: ""; position: fixed; inset: -10%;
+  background: radial-gradient(600px 300px at 10% 10%, rgba(59,130,246,.15), transparent),
+              radial-gradient(500px 250px at 90% 20%, rgba(99,102,241,.12), transparent),
+              radial-gradient(700px 350px at 50% 90%, rgba(56,189,248,.10), transparent);
+  pointer-events: none; z-index: -1; filter: blur(10px);
+}
+.gold-glow {
+  
+  text-shadow:
+    0 0 6px rgba(255, 215, 0, 0.65),
+    0 0 12px rgba(255, 193, 7, 0.55),
+    0 0 22px rgba(255, 170, 0, 0.45);
+}
+
+.logo-gold-glow {
+  filter:
+    drop-shadow(0 0 6px rgba(255, 215, 0, 0.6))
+    drop-shadow(0 0 12px rgba(255, 193, 7, 0.4));
+}
+.logo-hover-glow {
+  transition: all 0.3s ease-in-out;
+}
+
+.logo-hover-glow:hover {
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.9));
+  transform: scale(1.03); /* slight zoom on hover */
+}
