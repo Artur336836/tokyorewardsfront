@@ -4,7 +4,7 @@ import { io } from 'socket.io-client'
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
 import './index.css'
 import AdminGate from './routes/AdminGate.jsx';
-
+import AdminLogin from './routes/AdminLogin.jsx';
 
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || 'http://localhost:8080')
 
@@ -48,7 +48,6 @@ function Header() {
         <nav className="navbar">
           <NavLink to="/" end className={({isActive})=>`nav-btn ${isActive?'active':''}`}>Home</NavLink>
           <NavLink to="/leaderboard" className={({isActive})=>`nav-btn ${isActive?'active':''}`}>Leaderboards</NavLink>
-          <NavLink to="/admin" className={({isActive})=>`nav-btn ${isActive?'active':''}`}>Admin</NavLink>
         </nav>
       </div>
     </div>
@@ -390,7 +389,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
-        <Route path="/admin" element={<AdminGate />} /> {/* gated + lazy-loaded */}
+        <Route path="/admin-login-n8as" element={<AdminLogin />} />
+        <Route path="/secret-admin-pa9f" element={<AdminGate />} />
       </Routes>
     </div>
   );
