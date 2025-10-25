@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 
-const ADMIN_REDIRECT = '/secret-admin-xyz123';
+const ADMIN_REDIRECT = '/secret-admin-pa9f';
 
 export default function AdminLogin() {
   const [token, setToken] = useState('');
