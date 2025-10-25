@@ -1,34 +1,40 @@
-import { useEffect, useState, Suspense, lazy } from 'react';
+// src/routes/AdminGate.jsx
+import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+const LazyAdmin = lazy(() => import('../admin/AdminPanel.jsx'));
 
 export default function AdminGate() {
   const [ok, setOk] = useState(null);
+  const [token, setToken] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token') || '';
-    if (!token) return setOk(false);
+    const t = localStorage.getItem('admin_token') || '';
+    if (!t) return setOk(false);
+    setToken(t);
 
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/ping`, {
-      headers: { 'x-admin-token': token }
+    fetch(`${BACKEND_URL}/api/admin/ping`, {
+      headers: { 'x-admin-token': t }
     })
-      .then(r => setOk(r.ok))
+      .then(r => setOk(r.ok)) 
       .catch(() => setOk(false));
   }, []);
 
-  if (ok === null) return null;      // render nothing while checking
-  if (!ok) return <NotFoundPage />;  // or redirect home
+  if (ok === null) return null;
+  if (!ok) return <div style={{ display: 'none' }} />;
 
-  return <LazyAdmin />;              // only load when verified
+  const fetchAuthed = useMemo(() => {
+    return (input, init = {}) =>
+      fetch(input, {
+        ...init,
+        headers: { ...(init.headers || {}), 'x-admin-token': token }
+      });
+  }, [token]);
+
+  return (
+    <Suspense fallback={null}>
+      <LazyAdmin token={token} fetchAuthed={fetchAuthed} />
+    </Suspense>
+  );
 }
-
-function NotFoundPage() {
-  return <div style={{display:'none'}} />; // or your real 404
-}
-
-// lazy import AFTER validation -> people can’t view source/styles easily
-const LazyAdmin = (function(){
-  const Comp = () => {
-    const Admin = lazy(() => import('../admin/AdminPanel.jsx'));
-    return <Suspense fallback={null}><Admin /></Suspense>;
-  };
-  return Comp;
-})();
