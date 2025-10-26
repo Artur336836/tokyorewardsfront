@@ -301,22 +301,28 @@ function Hero({ socket }) {
 
 function LeaderboardPage() {
   const socket = useSocket(BACKEND_URL);
-  const [players, setPlayers] = useState([]);
+
   const [rewards, setRewards] = useState([175,100,70,50,35,25,15,10,10,10]);
 
+  const CACHE_KEY = "leaderboard-cache";
+  const [players, setPlayers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "[]"); }
+    catch { return []; }
+  });
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [loading, setLoading] = useState(players.length === 0);
+  const [err, setErr] = useState("");
 
-  const normalize = (arr) => {
-    if (!Array.isArray(arr)) return [];
-    return arr.map((u, i) => ({
+  const normalize = (arr) =>
+    (Array.isArray(arr) ? arr : []).map((u, i) => ({
       id: String(u.id ?? u.uuid ?? u.user_id ?? u.userId ?? i),
       name: String(u.name ?? u.username ?? u.displayName ?? `Player ${i+1}`),
       avatar: u.avatar ?? u.steam_avatar ?? u.image ?? null,
       points: Number(u.points ?? u.wagered ?? u.wager ?? u.total ?? 0),
-    }));
-  };
+      lastSeen: u.lastSeen ?? null,
+    })).sort((a,b) => b.points - a.points);
 
   useEffect(() => { fetchPrizes().then(setRewards).catch(()=>{}); }, []);
-
   useEffect(() => {
     const onPrizes = (arr) => {
       if (Array.isArray(arr) && arr.length === 10) {
@@ -328,25 +334,58 @@ function LeaderboardPage() {
   }, [socket]);
 
   useEffect(() => {
-    async function bootstrap() {
-      try {
-        const [lbRes, cdRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/leaderboard`),
-          fetch(`${BACKEND_URL}/api/countdown`),
-        ]);
-        const raw = lbRes.ok ? await lbRes.json() : [];
-        await cdRes.json().catch(()=>null);
-        setPlayers(normalize(raw));
-      } catch {
-        setPlayers([]);
+    let cancelled = false;
+
+    async function fetchWithRetry(tries = 3, timeoutMs = 60000) {
+      setLoading(true); setErr("");
+      for (let i = 0; i < tries; i++) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+          const [lbRes, cdRes, metaRes] = await Promise.all([
+            fetch(`${BACKEND_URL}/api/leaderboard`, { signal: ctrl.signal }),
+            fetch(`${BACKEND_URL}/api/countdown`,   { signal: ctrl.signal }).catch(() => null),
+            fetch(`${BACKEND_URL}/api/leaderboard/meta`, { signal: ctrl.signal }).catch(() => null),
+          ]);
+          clearTimeout(t);
+
+          if (!lbRes.ok) throw new Error(`HTTP ${lbRes.status}`);
+          const raw = await lbRes.json();
+          if (cdRes?.ok) { try { await cdRes.json(); } catch {} }
+          if (metaRes?.ok) { try { const m = await metaRes.json(); if (m?.updatedAt) setUpdatedAt(m.updatedAt); } catch {} }
+
+          const arr = normalize(raw);
+
+          if (!cancelled && arr.length > 0) {
+            setPlayers(arr);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(arr));
+          }
+
+          if (!cancelled) setLoading(false);
+          return;
+        } catch (e) {
+          clearTimeout(t);
+          if (i === tries - 1) {
+            if (!cancelled) { setErr("Couldn’t load live data; showing cached."); setLoading(false); }
+          } else {
+            await new Promise(r => setTimeout(r, 800 * 2 ** i));
+          }
+        }
       }
     }
-    bootstrap();
+
+    fetchWithRetry();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     const onLB = (data) => {
-      if (Array.isArray(data)) setPlayers(normalize(data));
+      if (!Array.isArray(data) || data.length === 0) return;
+      const arr = normalize(data);
+      if (arr.length === 0) return;
+      setPlayers(arr);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(arr));
+      setUpdatedAt(new Date().toISOString());
     };
     socket.on('leaderboard:update', onLB);
     return () => socket.off('leaderboard:update', onLB);
@@ -373,6 +412,21 @@ function LeaderboardPage() {
         <Countdown socket={socket} />
       </div>
 
+      {}
+      {loading && players.length === 0 && (
+        <div className="card mt-4 text-center">Waking server…</div>
+      )}
+      {err && (
+        <div className="card mt-4 text-center text-yellow-300 text-sm">
+          {err}
+        </div>
+      )}
+      {updatedAt && (
+        <div className="card mt-4 text-center text-xs opacity-70">
+          Last updated: {new Date(updatedAt).toLocaleString()}
+        </div>
+      )}
+
       <div className="mt-6">
         <Podium players={podium} rewards={rewards} />
       </div>
@@ -381,7 +435,6 @@ function LeaderboardPage() {
     </div>
   );
 }
-
 function App() {
   return (
     <div className="bg-ambient min-h-screen">
