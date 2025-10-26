@@ -115,48 +115,72 @@ function Announcement({ socket }) {
 
 // ---------- Countdown ----------
 function Countdown({ socket }) {
-  const [end, setEnd] = useState(null)
-  const [now, setNow] = useState(Date.now())
+  const KEY = 'countdown_end';
+  const [end, setEnd] = useState(() => {
+    const v = localStorage.getItem(KEY);
+    return v ? Number(v) : null;
+  });
+  const [now, setNow] = useState(Date.now());
+
+  const applyEnd = (incoming) => {
+    if (!incoming) return; // ignore null/undefined
+    const ts = typeof incoming === 'number' ? incoming : Date.parse(incoming);
+    if (!Number.isFinite(ts)) return;
+
+    // Ignore API’s default/placeholder or past times:
+    if (ts <= Date.now()) return;
+
+    setEnd(ts);
+    localStorage.setItem(KEY, String(ts));
+  };
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/countdown`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => setEnd(d?.end ? Date.parse(d.end) : null))
-      .catch(() => setEnd(null))
-  }, [])
+      .then(d => applyEnd(d?.end))
+      .catch(() => {}); // keep cached on error
+  }, []);
 
   useEffect(() => {
-    if (!socket) return
-    const onUpdate = (p) => setEnd(p?.end ? Date.parse(p.end) : null)
-    socket.on('countdown:update', onUpdate)
-    return () => socket.off('countdown:update', onUpdate)
-  }, [socket])
+    if (!socket) return;
+    const onUpdate = (p) => applyEnd(p?.end);
+    socket.on('countdown:update', onUpdate);
+    return () => socket.off('countdown:update', onUpdate);
+  }, [socket]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(id)
-  }, [])
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
 
-  if (end == null || end - now <= 0) {
+  if (end == null) {
+    return (
+      <div className="w-full text-center my-6">
+        <div className="text-2xl md:text-3xl font-bold">Timer not set</div>
+      </div>
+    );
+  }
+  if (end - now <= 0) {
     return (
       <div className="w-full text-center my-6">
         <div className="text-2xl md:text-3xl font-bold">Leaderboard ended</div>
       </div>
-    )
+    );
   }
 
-  const diff = end - now
-  const d = String(Math.floor(diff / 86400000)).padStart(2, '0')
-  const h = String(Math.floor(diff / 3600000) % 24).padStart(2, '0')
-  const m = String(Math.floor(diff / 60000) % 60).padStart(2, '0')
-  const s = String(Math.floor(diff / 1000) % 60).padStart(2, '0')
+  const diff = end - now;
+  const d = String(Math.floor(diff / 86400000)).padStart(2, '0');
+  const h = String(Math.floor(diff / 3600000) % 24).padStart(2, '0');
+  const m = String(Math.floor(diff / 60000) % 60).padStart(2, '0');
+  const s = String(Math.floor(diff / 1000) % 60).padStart(2, '0');
 
   return (
     <div className="w-full text-center my-6">
       <div className="countdown">{d}d : {h}h : {m}m : {s}s</div>
     </div>
-  )
+  );
 }
+
 
 // ---------- Avatar ----------
 function Avatar({ player, size=40 }) {
@@ -239,17 +263,45 @@ function LeaderboardRows({ players, rewards = [] }) {
 
 
 function Hero({ socket }) {
-  const [hero, setHero] = useState({})
+  const HERO_KEY = 'hero_cache';
+  const [hero, setHero] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(HERO_KEY) || '{}'); }
+    catch { return {}; }
+  });
+
+  // Merge patch safely: keep previous values if incoming is empty/falsy
+  const applyHeroPatch = (patch = {}) => {
+    setHero(prev => {
+      const next = {
+        imageUrl: patch.imageUrl || prev?.imageUrl || '/site-logo.png',
+        headline: patch.headline ?? prev?.headline ?? 'Leaderboard',
+        sub1: patch.sub1 ?? prev?.sub1 ?? 'Top players updated live',
+        sub2: patch.sub2 ?? prev?.sub2 ?? '',
+        linkText: patch.linkText ?? prev?.linkText ?? '',
+        linkUrl: patch.linkUrl ?? prev?.linkUrl ?? '',
+        imageGlow: patch.imageGlow ?? prev?.imageGlow ?? 'drop-shadow(0 0 16px rgba(255,255,255,0.65))',
+        headlineColor: patch.headlineColor ?? prev?.headlineColor ?? '#ffffff',
+        headlineGlow: patch.headlineGlow ?? prev?.headlineGlow ?? '0 0 12px rgba(255,255,255,0.8)',
+        sub1Color: patch.sub1Color ?? prev?.sub1Color ?? '#cbd5e1',
+        sub2Color: patch.sub2Color ?? prev?.sub2Color ?? '#cbd5e1',
+      };
+      localStorage.setItem(HERO_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
-    fetch(`${BACKEND_URL}/api/hero`).then(r => r.json()).then(setHero).catch(()=>{})
-  }, [])
+    fetch(`${BACKEND_URL}/api/hero`)
+      .then(r => r.ok ? r.json() : {})
+      .then(applyHeroPatch)
+      .catch(() => {}); // keep cached on error
+  }, []);
 
   useEffect(() => {
-    const onUpdate = (data) => setHero(data || {})
-    socket.on('hero:update', onUpdate)
-    return () => socket.off('hero:update', onUpdate)
-  }, [socket])
+    const onUpdate = (data) => applyHeroPatch(data);
+    socket.on('hero:update', onUpdate);
+    return () => socket.off('hero:update', onUpdate);
+  }, [socket]);
 
   return (
     <div className="flex flex-col items-center gap-2 mt-6 text-center">
@@ -257,32 +309,18 @@ function Hero({ socket }) {
         src={resolveAssetUrl(hero.imageUrl)}
         alt="Hero"
         className="w-20 h-20 mb-1"
-        style={{
-          filter: hero.imageGlow || 'drop-shadow(0 0 16px rgba(255,255,255,0.65))'
-        }}
+        style={{ filter: hero.imageGlow }}
       />
 
       <h2
         className="text-2xl md:text-3xl font-extrabold"
-        style={{
-          color: hero.headlineColor || '#ffffff',
-          textShadow: hero.headlineGlow || '0 0 12px rgba(255,255,255,0.8)'
-        }}
+        style={{ color: hero.headlineColor, textShadow: hero.headlineGlow }}
       >
-        {hero.headline || ''}
+        {hero.headline}
       </h2>
 
-      {hero.sub1 ? (
-        <p className="text-sm" style={{ color: hero.sub1Color || '#cbd5e1' }}>
-          {hero.sub1}
-        </p>
-      ) : null}
-
-      {hero.sub2 ? (
-        <p className="text-xs italic" style={{ color: hero.sub2Color || '#cbd5e1' }}>
-          {hero.sub2}
-        </p>
-      ) : null}
+      {hero.sub1 ? <p className="text-sm" style={{ color: hero.sub1Color }}>{hero.sub1}</p> : null}
+      {hero.sub2 ? <p className="text-xs italic" style={{ color: hero.sub2Color }}>{hero.sub2}</p> : null}
 
       {hero.linkText ? (
         <a
@@ -295,8 +333,9 @@ function Hero({ socket }) {
         </a>
       ) : null}
     </div>
-  )
+  );
 }
+
 
 
 function LeaderboardPage() {
