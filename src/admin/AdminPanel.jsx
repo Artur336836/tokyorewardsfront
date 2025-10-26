@@ -50,7 +50,7 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
   const [imgGlowColor, setImgGlowColor] = useState('#ffffff');
   const [imgGlowSize, setImgGlowSize]   = useState(16);
   const [imgGlowAlpha, setImgGlowAlpha] = useState(0.65);
-
+  const [imageScale, setImageScale] = useState(1.0);
   // Build an auth header helper. If fetchAuthed was passed from the Gate, we’ll use it
   // for admin endpoints; otherwise inject header manually.
   const effectiveToken = tokenProp || tokenLocal;
@@ -106,7 +106,11 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
       .then(ps => setPrizesLocal(ps.map(n => Math.floor(Number(n) || 0))))
       .catch(() => {});
   }, []);
-
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/hero`).then(r => r.json()).then(h => {
+      setImageScale(Number(h.imageScale ?? 1.0));
+    }).catch(()=>{});
+  }, []);
   function saveToken() {
     if (!tokenLocal) return;
     setAdminToken(tokenLocal);
@@ -152,7 +156,8 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
         linkText: hLinkText, linkUrl: hLinkUrl,
         headlineColor: hHeadlineColor, sub1Color: hSub1Color, sub2Color: hSub2Color,
         imageUrl: hImageUrl,
-        headlineGlow: headlineGlowCss, imageGlow: imageGlowCss
+        headlineGlow: headlineGlowCss, imageGlow: imageGlowCss,
+        imageScale
       })
     });
     if (!res.ok) { logout(); return alert('Unauthorized token. Logged out.'); }
@@ -339,7 +344,6 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
                       placeholder="/uploads/hero.png or https://…"
                     />
                   </div>
-
                   <div>
                     <div className="rounded-2xl border border-white/10 p-3">
                       <div className="mb-2 font-semibold">Image Glow</div>
@@ -380,6 +384,25 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+                {/*  image size */}
+                <div className="mt-3 rounded-2xl border border-white/10 p-3">
+                  <div className="mb-2 font-semibold">Hero Image Size</div>
+                  <label className="block text-sm mb-2">
+                    Scale: {imageScale.toFixed(2)}×
+                  </label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.05"
+                    value={imageScale}
+                    onChange={e => setImageScale(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="text-xs muted mt-2">
+                    It's set on 1
                   </div>
                 </div>
 
