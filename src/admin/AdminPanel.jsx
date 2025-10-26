@@ -34,7 +34,8 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
   const [prizesLocal, setPrizesLocal] = useState([175,100,70,50,35,25,15,10,10,10]);
   const [endLocal, setEndLocal] = useState('');
   const [serverEnd, setServerEnd] = useState('');
-
+  const [winStart, setWinStart] = useState(''); // "YYYY-MM-DDTHH:MM"
+  const [winEnd,   setWinEnd]   = useState('');
   const [hHeadline, setHHeadline] = useState('');
   const [hSub1, setHSub1] = useState('');
   const [hSub2, setHSub2] = useState('');
@@ -50,7 +51,6 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
   const [imgGlowColor, setImgGlowColor] = useState('#ffffff');
   const [imgGlowSize, setImgGlowSize]   = useState(16);
   const [imgGlowAlpha, setImgGlowAlpha] = useState(0.65);
-  const [imageScale, setImageScale] = useState(1.0);
   // Build an auth header helper. If fetchAuthed was passed from the Gate, we’ll use it
   // for admin endpoints; otherwise inject header manually.
   const effectiveToken = tokenProp || tokenLocal;
@@ -64,6 +64,21 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
     return (input, init = {}) =>
       fetch(input, { ...init, headers: { ...(init.headers || {}), ...authHeader } });
   }, [fetchAuthed, authHeader]);
+  useEffect(() => {
+  fetch(`${BACKEND_URL}/api/contest`)
+    .then(r => r.json())
+    .then(j => {
+      const toLocal = (iso) => {
+        if (!iso) return '';
+        const dt = new Date(iso);
+        const tz = dt.getTimezoneOffset() * 60000;
+        return new Date(dt.getTime() - tz).toISOString().slice(0,16);
+      };
+      setWinStart(toLocal(j.start));
+      setWinEnd(toLocal(j.end));
+    })
+    .catch(()=>{});
+  }, []);
 
   useEffect(() => {
     // countdown
@@ -106,11 +121,6 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
       .then(ps => setPrizesLocal(ps.map(n => Math.floor(Number(n) || 0))))
       .catch(() => {});
   }, []);
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/api/hero`).then(r => r.json()).then(h => {
-      setImageScale(Number(h.imageScale ?? 1.0));
-    }).catch(()=>{});
-  }, []);
   function saveToken() {
     if (!tokenLocal) return;
     setAdminToken(tokenLocal);
@@ -144,6 +154,27 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
     setServerEnd(data.end || '');
     alert('Countdown saved');
   }
+  async function saveContestWindow() {
+    const toIso = (local) => (local ? new Date(local).toISOString() : null);
+    const res = await callAuthed(`${BACKEND_URL}/api/contest`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ start: toIso(winStart), end: toIso(winEnd) })
+    });
+    if (!res.ok) { logout(); return alert('Unauthorized token. Logged out.'); }
+    alert('Contest window saved — public leaderboard now shows gains within this window.');
+  }
+
+  async function clearContestWindow() {
+    const res = await callAuthed(`${BACKEND_URL}/api/contest`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ start: null, end: null })
+    });
+    if (!res.ok) { logout(); return alert('Unauthorized token. Logged out.'); }
+    setWinStart(''); setWinEnd('');
+    alert('Contest window cleared — public leaderboard shows lifetime totals.');
+  }
 
   async function saveHero() {
     const headlineGlowCss = `0 0 ${hGlowSize}px ${hexToRgba(hGlowColor, hGlowAlpha)}`;
@@ -156,8 +187,7 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
         linkText: hLinkText, linkUrl: hLinkUrl,
         headlineColor: hHeadlineColor, sub1Color: hSub1Color, sub2Color: hSub2Color,
         imageUrl: hImageUrl,
-        headlineGlow: headlineGlowCss, imageGlow: imageGlowCss,
-        imageScale
+        headlineGlow: headlineGlowCss, imageGlow: imageGlowCss
       })
     });
     if (!res.ok) { logout(); return alert('Unauthorized token. Logged out.'); }
@@ -386,25 +416,6 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
                     </div>
                   </div>
                 </div>
-                {/*  image size */}
-                <div className="mt-3 rounded-2xl border border-white/10 p-3">
-                  <div className="mb-2 font-semibold">Hero Image Size</div>
-                  <label className="block text-sm mb-2">
-                    Scale: {imageScale.toFixed(2)}×
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.05"
-                    value={imageScale}
-                    onChange={e => setImageScale(Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="text-xs muted mt-2">
-                    It's set on 1
-                  </div>
-                </div>
 
                 {/* Upload image */}
                 <div className="mt-2">
@@ -476,7 +487,37 @@ export default function AdminPanel({ token: tokenProp, fetchAuthed }) {
               </div>
               <button className="btn mt-3" onClick={savePrizes}>Save Prizes</button>
             </div>
-
+            {/* Contest Window */}
+            <div className="card mt-4">
+              <div className="mb-2 font-semibold">Contest Window (Public Leaderboard)</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-sm muted">Start (local)</span>
+                  <input
+                    type="datetime-local"
+                    className="btn w-full mt-1"
+                    value={winStart}
+                    onChange={e=>setWinStart(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm muted">End (local)</span>
+                  <input
+                    type="datetime-local"
+                    className="btn w-full mt-1"
+                    value={winEnd}
+                    onChange={e=>setWinEnd(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button className="btn" onClick={saveContestWindow}>Save window</button>
+                <button className="btn ghost" onClick={clearContestWindow}>Clear</button>
+              </div>
+              <p className="text-xs muted mt-2">
+                When set, <code>/api/leaderboard</code> shows each player's <strong>gain</strong> between Start and End.
+              </p>
+            </div>
             {/* Export IDs */}
             <div className="card mt-4">
               <div className="mb-2 font-semibold">Export IDs</div>
