@@ -119,7 +119,7 @@ function Announcement({ socket }) {
 function Countdown() {
   return (
     <div className="w-full text-center my-6">
-      <div className="text-2xl md:text-3xl font-bold">Countdown ended</div>
+      <div className="text-2xl md:text-3xl font-bold">Leaderboard ended</div>
     </div>
   );
 }
