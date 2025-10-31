@@ -136,16 +136,18 @@ function Countdown({ socket }) {
     localStorage.setItem(KEY, String(ts));
   };
 
-  // ✅ Automatically apply env variable on load (for everyone)
+  // ✅ Force reset old stored value if it's different from env
   useEffect(() => {
     const envDate = process.env.COUNTDOWN_END;
     if (envDate) {
       const envTs = Date.parse(envDate);
       if (!Number.isNaN(envTs)) {
         const saved = localStorage.getItem(KEY);
+        // If localStorage value exists and differs from env → reset
         if (!saved || Number(saved) !== envTs) {
-          console.log("Applying new COUNTDOWN_END from env:", envDate);
-          applyEnd(envDate);
+          console.log("Clearing outdated countdown_end and applying env value:", envDate);
+          localStorage.removeItem(KEY); // clear old one
+          applyEnd(envDate); // set the new one
         }
       }
     }
