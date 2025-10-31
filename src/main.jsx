@@ -116,91 +116,16 @@ function Announcement({ socket }) {
 // ---------- Countdown ----------
 
 
-function Countdown({ socket }) {
-  const KEY = 'countdown_end';
-  const [end, setEnd] = useState(() => {
-    const v = localStorage.getItem(KEY);
-    return v ? Number(v) : null;
-  });
-  const [now, setNow] = useState(Date.now());
-
-  const applyEnd = (incoming) => {
-    if (!incoming) return; // ignore null/undefined
-    const ts = typeof incoming === 'number' ? incoming : Date.parse(incoming);
-    if (!Number.isFinite(ts)) return;
-
-    // Ignore API’s default/placeholder or past times:
-    if (ts <= Date.now()) return;
-
-    setEnd(ts);
-    localStorage.setItem(KEY, String(ts));
-  };
-
-  // ✅ Force reset old stored value if it's different from env
-  useEffect(() => {
-    const envDate = process.env.COUNTDOWN_END;
-    if (envDate) {
-      const envTs = Date.parse(envDate);
-      if (!Number.isNaN(envTs)) {
-        const saved = localStorage.getItem(KEY);
-        // If localStorage value exists and differs from env → reset
-        if (!saved || Number(saved) !== envTs) {
-          console.log("Clearing outdated countdown_end and applying env value:", envDate);
-          localStorage.removeItem(KEY); // clear old one
-          applyEnd(envDate); // set the new one
-        }
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/api/countdown`)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => applyEnd(d?.end))
-      .catch(() => {}); // keep cached on error
-  }, []);
-
-  useEffect(() => {
-    if (!socket) return;
-    const onUpdate = (p) => applyEnd(p?.end);
-    socket.on('countdown:update', onUpdate);
-    return () => socket.off('countdown:update', onUpdate);
-  }, [socket]);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(id);
-  }, []);
-
-  if (end == null) {
-    return (
-      <div className="w-full text-center my-6">
-        <div className="text-2xl md:text-3xl font-bold">Timer not set</div>
-      </div>
-    );
-  }
-  if (end - now <= 0) {
-    return (
-      <div className="w-full text-center my-6">
-        <div className="text-2xl md:text-3xl font-bold">Leaderboard ended</div>
-      </div>
-    );
-  }
-
-  const diff = end - now;
-  const d = String(Math.floor(diff / 86400000)).padStart(2, '0');
-  const h = String(Math.floor(diff / 3600000) % 24).padStart(2, '0');
-  const m = String(Math.floor(diff / 60000) % 60).padStart(2, '0');
-  const s = String(Math.floor(diff / 1000) % 60).padStart(2, '0');
-
+function Countdown() {
   return (
     <div className="w-full text-center my-6">
-      <div className="countdown">{d}d : {h}h : {m}m : {s}s</div>
+      <div className="text-2xl md:text-3xl font-bold">Countdown ended</div>
     </div>
   );
 }
 
 export default Countdown;
+
 
 
 
