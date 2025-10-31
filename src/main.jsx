@@ -114,6 +114,8 @@ function Announcement({ socket }) {
 }
 
 // ---------- Countdown ----------
+import { useState, useEffect } from "react";
+
 function Countdown({ socket }) {
   const KEY = 'countdown_end';
   const [end, setEnd] = useState(() => {
@@ -133,6 +135,21 @@ function Countdown({ socket }) {
     setEnd(ts);
     localStorage.setItem(KEY, String(ts));
   };
+
+  // ✅ Automatically apply env variable on load (for everyone)
+  useEffect(() => {
+    const envDate = process.env.COUNTDOWN_END;
+    if (envDate) {
+      const envTs = Date.parse(envDate);
+      if (!Number.isNaN(envTs)) {
+        const saved = localStorage.getItem(KEY);
+        if (!saved || Number(saved) !== envTs) {
+          console.log("Applying new COUNTDOWN_END from env:", envDate);
+          applyEnd(envDate);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/countdown`)
@@ -180,6 +197,9 @@ function Countdown({ socket }) {
     </div>
   );
 }
+
+export default Countdown;
+
 
 
 // ---------- Avatar ----------
